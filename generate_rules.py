@@ -57,7 +57,7 @@ def rules_from_tiles(grid):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Format load_rules.py input_file output_file")
+        print("Format generate_rules.py input_file output_file")
         exit(1)
 
     grid, keys = load_grid(sys.argv[1])
