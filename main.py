@@ -125,6 +125,7 @@ def collapse_grid(grid):
     print("Updating Entropy...")  # Debug
     grid = update_entropy(grid, DIM)
     _debug_print_grid(grid)
+    steps.append(get_current_image(grid, img_size))
 
     while not is_collapsed(grid):
         while not compare_values(old_grid, grid):
@@ -132,6 +133,7 @@ def collapse_grid(grid):
             print("Updating Entropy...")  # Debug
             grid = update_entropy(grid, DIM)
             _debug_print_grid(grid)
+            steps.append(get_current_image(grid, img_size))
 
         if is_collapsed(grid):
             continue
@@ -139,6 +141,7 @@ def collapse_grid(grid):
         print("Collapsing tile...")  # Debug
         grid = collapse_tile(grid, least_entropy(grid))
         _debug_print_grid(grid)
+        steps.append(get_current_image(grid, img_size))
 
     return grid
 
@@ -169,6 +172,42 @@ def output_image(grid, size, filename):
     img.save(filename)
 
 
+def get_average_color(colors):
+    return (int(sum([c[0] for c in colors]) / len(colors)),
+            int(sum([c[1] for c in colors]) / len(colors)),
+            int(sum([c[2] for c in colors]) / len(colors)))
+
+
+def get_current_image(grid, size):
+    # init
+    p_size = size / DIM
+
+    # create drawing context
+    img = Image.new('RGB', (size, size))
+    draw = ImageDraw.Draw(img)
+
+    for y in range(DIM):
+        for x in range(DIM):
+            if grid[f"{x} {y}"].entropy == NUM_STATES:
+                color = (0, 0, 0)
+
+            elif grid[f"{x} {y}"].collapsed:
+                color = colors[grid[f"{x} {y}"].states[0]]
+
+            else:
+
+                color = get_average_color([colors[state] for state in grid[f"{x} {y}"].states])
+
+            draw.rectangle(((x * p_size, y * p_size), (x * p_size + p_size, y * p_size + p_size)),
+                               fill=color)
+
+    return img
+
+
+def output_gif(images, filename, loop=False, duration=50):
+    images[0].save(filename, save_all=True, append_images=images[1:], duration=duration, loop=loop)
+
+
 def _debug_print_grid(grid):
     for y in range(DIM):
         for x in range(DIM):
@@ -186,8 +225,11 @@ def _debug_set_start_tile(grid, x, y, state):
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
-        print("Format main.py map_size rule_file color_scheme_file output_image")
+        print("Format main.py map_size rule_file color_scheme_file output_image (progress_gif)")
         exit(1)
+
+    # keep track of progress in order to create gif
+    steps = []
 
     # rules:
     # when checking the rules, a cell will retrieve all of its neighbors, these are represented by the directions
@@ -220,11 +262,13 @@ if __name__ == '__main__':
     img_size = DIM * 10
     grid = generate_grid(DIM)
     _debug_print_grid(grid)  # Debug
+    steps.append(get_current_image(grid, img_size))
 
     # collapse 1st tile
     #_debug_set_start_tile(grid, 2, 2, [SEA, SEA])
     collapse_tile(grid, least_entropy(grid))
     _debug_print_grid(grid)  # Debug
+    steps.append(get_current_image(grid, img_size))
 
     # calculate entropy for every tile
     # update_entropy(grid, DIM)
@@ -237,3 +281,7 @@ if __name__ == '__main__':
 
     # generate an image based on grid
     output_image(grid, img_size, sys.argv[4])
+
+    # generate output gif to show progress
+    if len(sys.argv) == 6:
+        output_gif(steps, sys.argv[5])
