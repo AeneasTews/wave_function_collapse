@@ -1,54 +1,15 @@
 import random
 from copy import deepcopy
+import pickle
+from PIL import Image, ImageDraw
+import sys
 
-LAND = 0
-COAST = 1
-SEA = 2
-NUM_STATES = 3
-
-# rules:
-# when checking the rules, a cell will retrieve all of its neighbors, these are represented by the directions
-# then it will check for every state of a neighbor and check which states cell itself can have according to this
-# neighbor. if a rule is violated. if this is case, the corresponding state will be removed from the possible states
-# the first value is the location of the neighbor, the second value is the state of the neighbor, and the third value is
-# the corresponding allowed state of the tile
-rules = [
-    ("UP", LAND, LAND),
-    ("UP", COAST, SEA),
-    ("UP", SEA, SEA),
-    ("UP", LAND, COAST),
-    ("RIGHT", LAND, LAND),
-    ("RIGHT", COAST, COAST),
-    ("RIGHT", LAND, COAST),
-    ("RIGHT", SEA, COAST),
-    ("RIGHT", COAST, SEA),
-    ("RIGHT", SEA, SEA),
-    ("RIGHT", COAST, LAND),
-    ("DOWN", LAND, LAND),
-    ("DOWN", COAST, LAND),
-    ("DOWN", SEA, SEA),
-    ("DOWN", SEA, COAST),
-    ("LEFT", LAND, LAND),
-    ("LEFT", COAST, COAST),
-    ("LEFT", LAND, COAST),
-    ("LEFT", SEA, COAST),
-    ("LEFT", SEA, SEA),
-    ("LEFT", COAST, SEA),
-    ("LEFT", COAST, LAND)
-]
-
-# colors
-colors = {
-    LAND: '\033[32mL\033[0m',
-    COAST: '\033[93mC\033[0m',
-    SEA: '\033[34mS\033[34m',
-}
 
 class Tile:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.states = [LAND, COAST, SEA]
+        self.states = [k for k in keys]
         self.entropy = len(self.states)
         self.collapsed = False
 
@@ -79,7 +40,7 @@ def generate_grid(dimension):
 
 
 def least_entropy(grid):
-    lowest_entropy = 3
+    lowest_entropy = NUM_STATES
     for tile in grid.values():
         if 1 < len(tile.states) < lowest_entropy:
             lowest_entropy = len(tile.states)
@@ -134,7 +95,7 @@ def get_intersection(possible_states):
     if len(possible_states) == 0:
         raise Exception("Impossible, please start from beginning")
 
-    intersection = [LAND, COAST, SEA]
+    intersection = [k for k in keys]
     for direction in possible_states.keys():
         intersection = [state for state in possible_states[direction] if state in intersection]
 
@@ -192,6 +153,22 @@ def final_print(grid):
         print()
 
 
+def output_image(grid, size, filename):
+    # init
+    p_size = size / DIM
+
+    # create drawing context
+    img = Image.new('RGB', (size, size))
+    draw = ImageDraw.Draw(img)
+
+    for y in range(DIM):
+        for x in range(DIM):
+            draw.rectangle(((x * p_size, y * p_size), (x * p_size + p_size, y * p_size + p_size)),
+                           fill=colors[grid[f"{x} {y}"].states[0]])
+
+    img.save(filename)
+
+
 def _debug_print_grid(grid):
     for y in range(DIM):
         for x in range(DIM):
@@ -208,8 +185,39 @@ def _debug_set_start_tile(grid, x, y, state):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) < 4:
+        print("Format main.py map_size rule_file color_scheme_file output_image")
+        exit(1)
+
+    # rules:
+    # when checking the rules, a cell will retrieve all of its neighbors, these are represented by the directions
+    # then it will check for every state of a neighbor and check which states cell itself can have according to this
+    # neighbor. if a rule is violated. if this is case, the corresponding state will be removed from the possible states
+    # the first value is the location of the neighbor, the second value is the state of the neighbor, and the third value is
+    # the corresponding allowed state of the tile
+    rules, keys = pickle.load(open(sys.argv[2], 'rb'))
+    NUM_STATES = len(keys)
+
+    # colors
+    colors = {}
+    try:
+        colors = pickle.load(open(sys.argv[3], 'rb'))
+        if not len(colors) == NUM_STATES:
+            raise Exception("Invalid Color Key! Please ensure, that one color is defined for every key!")
+
+    except FileNotFoundError:
+        for key in keys:
+            colors[key] = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+    # colors = {
+    #    0: '\033[32mL\033[0m',
+    #    1: '\033[93mC\033[0m',
+    #    2: '\033[34mS\033[34m',
+    # }
+
     # initialize grid
-    DIM = 20
+    DIM = int(sys.argv[1])
+    img_size = DIM * 10
     grid = generate_grid(DIM)
     _debug_print_grid(grid)  # Debug
 
@@ -225,4 +233,7 @@ if __name__ == '__main__':
     _debug_print_grid(grid)
 
     # print the grid in color
-    final_print(grid)
+    # final_print(grid)
+
+    # generate an image based on grid
+    output_image(grid, img_size, sys.argv[4])
