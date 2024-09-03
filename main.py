@@ -122,28 +122,62 @@ def compare_values(old_grid, grid):
 def collapse_grid(grid):
     #while not is_collapsed(grid):
     old_grid = deepcopy(grid)
-    print("Updating Entropy...")  # Debug
+    # print("Updating Entropy...")  # Debug
     grid = update_entropy(grid, DIM)
-    _debug_print_grid(grid)
+    # _debug_print_grid(grid)
     steps.append(get_current_image(grid, img_size))
+    print_progress_bar(MAX_ENTROPY - get_total_entropy(grid), MAX_ENTROPY, prefix="Progress:", suffix="Complete", length=50)
 
     while not is_collapsed(grid):
         while not compare_values(old_grid, grid):
             old_grid = deepcopy(grid)
-            print("Updating Entropy...")  # Debug
+            # print("Updating Entropy...")  # Debug
             grid = update_entropy(grid, DIM)
-            _debug_print_grid(grid)
-            steps.append(get_current_image(grid, img_size))
+            # _debug_print_grid(grid)
+            steps.append(get_current_image(grid, img_size))  # Cooler looking progress gif
+            print_progress_bar(MAX_ENTROPY - get_total_entropy(grid), MAX_ENTROPY, prefix="Progress:", suffix="Complete", length=50)
 
         if is_collapsed(grid):
             continue
 
-        print("Collapsing tile...")  # Debug
+        # print("Collapsing tile...")  # Debug
+        # steps.append(get_current_image(grid, img_size))  # Technically more accurate representation of progress
         grid = collapse_tile(grid, least_entropy(grid))
-        _debug_print_grid(grid)
+        # _debug_print_grid(grid)
         steps.append(get_current_image(grid, img_size))
+        print_progress_bar(MAX_ENTROPY - get_total_entropy(grid), MAX_ENTROPY, prefix="Progress:", suffix="Complete", length=50)
 
     return grid
+
+
+def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', print_end = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = print_end)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
+
+def get_total_entropy(grid):
+    entropy = 0
+    for tile in grid.values():
+        entropy += tile.entropy
+
+    return entropy - DIM * DIM
 
 
 def final_print(grid):
@@ -157,6 +191,7 @@ def final_print(grid):
 
 
 def output_image(grid, size, filename):
+    print("Generating output image...")
     # init
     p_size = size / DIM
 
@@ -205,6 +240,7 @@ def get_current_image(grid, size):
 
 
 def output_gif(images, filename, loop=False, duration=50):
+    print("Generating progress gif...")
     images[0].save(filename, save_all=True, append_images=images[1:], duration=duration, loop=loop)
 
 
@@ -227,6 +263,10 @@ if __name__ == '__main__':
     if len(sys.argv) < 4:
         print("Format main.py map_size rule_file color_scheme_file output_image (progress_gif)")
         exit(1)
+
+    # randomness
+    seed = random.randrange(0, sys.maxsize)
+    random.seed(seed)
 
     # keep track of progress in order to create gif
     steps = []
@@ -261,20 +301,23 @@ if __name__ == '__main__':
     DIM = int(sys.argv[1])
     img_size = DIM * 10
     grid = generate_grid(DIM)
-    _debug_print_grid(grid)  # Debug
+    MAX_ENTROPY = DIM * DIM * NUM_STATES
+    # _debug_print_grid(grid)  # Debug
     steps.append(get_current_image(grid, img_size))
+    print_progress_bar(MAX_ENTROPY - get_total_entropy(grid), MAX_ENTROPY, prefix="Progress:", suffix="Complete", length=50)
 
     # collapse 1st tile
     #_debug_set_start_tile(grid, 2, 2, [SEA, SEA])
     collapse_tile(grid, least_entropy(grid))
-    _debug_print_grid(grid)  # Debug
+    # _debug_print_grid(grid)  # Debug
     steps.append(get_current_image(grid, img_size))
+    print_progress_bar(MAX_ENTROPY - get_total_entropy(grid), MAX_ENTROPY, prefix="Progress:", suffix="Complete", length=50)
 
     # calculate entropy for every tile
     # update_entropy(grid, DIM)
     collapse_grid(grid)
-    print("Final grid...")  # Debug
-    _debug_print_grid(grid)
+    # print("Final grid...")  # Debug
+    # _debug_print_grid(grid)
 
     # print the grid in color
     # final_print(grid)
@@ -285,3 +328,5 @@ if __name__ == '__main__':
     # generate output gif to show progress
     if len(sys.argv) == 6:
         output_gif(steps, sys.argv[5])
+
+    print(f"Seed: {seed}")
