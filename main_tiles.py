@@ -1,7 +1,7 @@
 import random
 from copy import deepcopy
 import pickle
-from PIL import Image
+from PIL import Image, ImageDraw
 import sys
 
 
@@ -171,19 +171,26 @@ def output_image(grid, size, filename):
 
 def get_current_image(grid, size):
     # create drawing context
-    img = Image.new('RGB', (size, size))
+    img = Image.new('RGBA', (size, size))
 
     for y in range(DIM):
         for x in range(DIM):
             if grid[f"{x} {y}"].entropy == NUM_STATES:
-                tile = tiles[0]
+                tile = Image.new('RGB', (t_size, t_size), color=(0, 0, 0))
 
             elif grid[f"{x} {y}"].collapsed:
                 tile = tiles[grid[f"{x} {y}"].states[0]]
 
             else:
-                tile = tiles[0]
                 # color = get_average_color([colors[state] for state in grid[f"{x} {y}"].states])
+                overlap = Image.new('RGBA', (t_size, t_size))
+                num_states = len(grid[f"{x} {y}"].states)
+                for state in grid[f"{x} {y}"].states:
+                    tile = tiles[state]
+                    tile.putalpha(int(255/num_states))
+                    overlap.alpha_composite(tile)
+
+                tile = overlap
 
             img.paste(tile, (x * t_size, y * t_size, x * t_size + t_size, y * t_size + t_size))
 
@@ -203,7 +210,7 @@ def _debug_print_grid(grid):
     print()
 
 
-def _debug_set_start_tile(grid, x, y, state):
+def _debug_set_tile(grid, x, y, state):
     tile = Tile(x, y)
     tile.set_states(state)
     grid[f"{x} {y}"] = tile
@@ -237,7 +244,7 @@ if __name__ == '__main__':
     try:
         tile_paths = pickle.load(open("tile_scheme.pkl", 'rb'))
         for key in tile_paths:
-            img = Image.open(tile_paths[key])
+            img = Image.open(tile_paths[key]).convert('RGBA')
             img = img.resize((t_size, t_size))
             tiles[key] = img
 
